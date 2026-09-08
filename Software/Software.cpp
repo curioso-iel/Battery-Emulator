@@ -753,8 +753,14 @@ void setup() {
   init_stored_settings();
 
   // AP-button recovery must always run
-  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                          &connectivity_loop_task, esp32hal->WIFICORE());
+  xTaskCreatePinnedToCore(
+      (TaskFunction_t)&connectivity_loop,
+      "connectivity_loop",
+      connectivity_stack_size,
+      NULL,
+      TASK_CONNECTIVITY_PRIO,
+      &connectivity_loop_task,
+      esp32hal->WIFICORE());
 
   led_init();
 
