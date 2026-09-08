@@ -1,4 +1,4 @@
-// Checkpoint UI-01: read-only battery dashboard, cell monitor and local pump toggle.
+// UI-03: uniform cards, Wi-Fi/SSID header and battery power state.
 // Based on the supplied board routing/timings; LVGL integration targets 9.3.0.
 // Source reviewed, not compiled or hardware-tested.
 #if defined(HW_WAVESHARE_LCD_5B) && !defined(SMALL_FLASH_DEVICE)
@@ -7,6 +7,7 @@
 #include "../safety/safety.h"
 #include "../../datalayer/datalayer.h"
 #include <Arduino.h>
+#include <WiFi.h>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
@@ -165,8 +166,18 @@ lv_obj_t *soc_label, *soh_label, *temp_label, *voltage_label, *current_label, *p
 lv_obj_t *charge_label, *discharge_label, *charge_effective, *discharge_effective;
 lv_obj_t *pump_track, *pump_knob, *pump_label;
 lv_obj_t *chart, *cell_stats, *cell_scale, *cell_count_label;
+lv_obj_t* wifi_label;
+lv_obj_t* wifi_icon;
+lv_obj_t* wifi_bars[4];
 lv_chart_series_t* cell_series;
-int32_t plotted_cells[MAX_AMOUNT_CELLS];
+constexpr unsigned PACK_CELLS = 98, CELLS_PER_PAGE = 14;
+static_assert(MAX_AMOUNT_CELLS >= PACK_CELLS, "Cell array too small");
+int32_t plotted_cells[CELLS_PER_PAGE];
+lv_obj_t* cell_numbers[CELLS_PER_PAGE];
+lv_obj_t* cell_page_label;
+unsigned cell_page = 0;
+bool refresh_requested = false;
+void refresh_data();
 bool cells_visible = false;
 bool pump_local_request = false;
 bool touch_ready = false;
@@ -211,7 +222,15 @@ void build_ui() {
   lv_obj_remove_flag(root, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_bg_color(root, lv_color_hex(UI_BG), 0);
   lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
-  label(root, 24, 20, 370, "RESERVA / KIA SOUL", &lv_font_montserrat_24);
+  wifi_icon = label(root, 24, 20, 32, LV_SYMBOL_WIFI, &lv_font_montserrat_24, UI_MUTED);
+  for (unsigned i = 0; i < 4; ++i) {
+    int h = 6 + int(i) * 6;
+    wifi_bars[i] = panel(root, 60 + int(i) * 9, 46 - h, 6, h, 0x3A4B58);
+    lv_obj_set_style_radius(wifi_bars[i], 1, 0);
+  }
+  wifi_label = label(root, 106, 22, 286, "| SEM REDE", &lv_font_montserrat_20, UI_MUTED);
+  lv_label_set_long_mode(wifi_label, LV_LABEL_LONG_MODE_DOTS);
+  lv_obj_set_size(wifi_label, 286, 26);
   status_label = label(root, 420, 24, 355, "CAN: A AGUARDAR", &lv_font_montserrat_20, UI_ACCENT);
   lv_obj_t* nav = panel(root, 800, 12, 200, 52, UI_ACCENT);
   navigation = label(nav, 10, 14, 180, "Cell Monitor >", &lv_font_montserrat_20, UI_BG);
@@ -220,50 +239,72 @@ void build_ui() {
   page_main = panel(root, 0, 76, 1024, 474, UI_BG);
   page_cells = panel(root, 0, 76, 1024, 474, UI_BG);
   lv_obj_add_flag(page_cells, LV_OBJ_FLAG_HIDDEN);
-  soc_label = metric(24, 8, 280, 142, "SOC / CARGA");
+  soc_label = metric(24, 8, 314, 142, "SOC / CARGA");
   lv_obj_set_style_text_color(soc_label, lv_color_hex(UI_ACCENT), 0);
-  soh_label = metric(24, 166, 280, 124, "SOH / SAUDE");
-  temp_label = metric(320, 8, 332, 142, "TEMPERATURA MAX.");
-  voltage_label = metric(668, 8, 332, 142, "TENSAO");
-  current_label = metric(320, 166, 332, 124, "CORRENTE");
-  power_label = metric(668, 166, 332, 124, "POTENCIA");
+  soh_label = metric(24, 166, 314, 142, "SOH / SAUDE");
+  temp_label = metric(354, 8, 314, 142, "TEMPERATURA MAX.");
+  voltage_label = metric(684, 8, 314, 142, "TENSAO");
+  current_label = metric(354, 166, 314, 142, "CORRENTE");
+  power_label = metric(684, 166, 314, 142, "POTENCIA");
 
-  lv_obj_t* c = panel(page_main, 24, 308, 310, 152, UI_PANEL);
+  lv_obj_t* c = panel(page_main, 24, 324, 314, 142, UI_PANEL);
   label(c, 16, 10, 278, "LIMITE CARGA / UTILIZADOR", &lv_font_montserrat_14, UI_MUTED);
-  charge_label = label(c, 16, 36, 278, "-- A", &lv_font_montserrat_36);
-  charge_effective = label(c, 16, 96, 278, "Disponivel: -- A", &lv_font_montserrat_20, UI_MUTED);
-  c = panel(page_main, 350, 308, 310, 152, UI_PANEL);
+  charge_label = label(c, 16, 36, 200, "-- A", &lv_font_montserrat_36);
+  lv_obj_t* up = panel(c, 230, 32, 64, 48, UI_ACCENT);
+  lv_obj_t* arrow = label(up, 0, 10, 64, LV_SYMBOL_UP, &lv_font_montserrat_24, UI_BG);
+  lv_obj_set_style_text_align(arrow, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_t* dn = panel(c, 230, 86, 64, 48, UI_ACCENT);
+  arrow = label(dn, 0, 10, 64, LV_SYMBOL_DOWN, &lv_font_montserrat_24, UI_BG);
+  lv_obj_set_style_text_align(arrow, LV_TEXT_ALIGN_CENTER, 0);
+  charge_effective = label(c, 16, 96, 210, "Disponivel: -- A", &lv_font_montserrat_20, UI_MUTED);
+  c = panel(page_main, 354, 324, 314, 142, UI_PANEL);
   label(c, 16, 10, 278, "LIMITE DESCARGA / UTILIZADOR", &lv_font_montserrat_14, UI_MUTED);
-  discharge_label = label(c, 16, 36, 278, "-- A", &lv_font_montserrat_36);
-  discharge_effective = label(c, 16, 96, 278, "Disponivel: -- A", &lv_font_montserrat_20, UI_MUTED);
-  c = panel(page_main, 676, 308, 324, 152, UI_PANEL);
+  discharge_label = label(c, 16, 36, 200, "-- A", &lv_font_montserrat_36);
+  up = panel(c, 230, 32, 64, 48, UI_ACCENT);
+  arrow = label(up, 0, 10, 64, LV_SYMBOL_UP, &lv_font_montserrat_24, UI_BG);
+  lv_obj_set_style_text_align(arrow, LV_TEXT_ALIGN_CENTER, 0);
+  dn = panel(c, 230, 86, 64, 48, UI_ACCENT);
+  arrow = label(dn, 0, 10, 64, LV_SYMBOL_DOWN, &lv_font_montserrat_24, UI_BG);
+  lv_obj_set_style_text_align(arrow, LV_TEXT_ALIGN_CENTER, 0);
+  discharge_effective = label(c, 16, 96, 210, "Disponivel: -- A", &lv_font_montserrat_20, UI_MUTED);
+  c = panel(page_main, 684, 324, 314, 142, UI_PANEL);
   label(c, 16, 10, 290, "BOMBA / PEDIDO LOCAL", &lv_font_montserrat_20, UI_MUTED);
   pump_track = panel(c, 16, 47, 112, 48, 0x3A4B58);
   lv_obj_set_style_radius(pump_track, 24, 0);
   pump_knob = panel(pump_track, 5, 5, 38, 38, UI_TEXT);
   lv_obj_set_style_radius(pump_knob, 19, 0);
-  pump_label = label(c, 144, 55, 164, "OFF", &lv_font_montserrat_24);
-  label(c, 16, 112, 296, "RS485 por implementar", &lv_font_montserrat_20, UI_ACCENT);
+  pump_label = label(c, 144, 55, 154, "OFF", &lv_font_montserrat_24);
+  label(c, 16, 110, 282, "RS485 por implementar", &lv_font_montserrat_20, UI_ACCENT);
 
   cell_count_label = label(page_cells, 24, 6, 976, "CELULAS / SEM DADOS", &lv_font_montserrat_24);
   cell_stats = label(page_cells, 24, 50, 976, "MIN --     MAX --     DELTA --", &lv_font_montserrat_20, UI_MUTED);
   cell_scale = label(page_cells, 24, 86, 976, "Escala automatica / mV", &lv_font_montserrat_14, UI_MUTED);
   chart = lv_chart_create(page_cells);
   lv_obj_set_pos(chart, 24, 120);
-  lv_obj_set_size(chart, 976, 310);
+  lv_obj_set_size(chart, 976, 250);
   lv_obj_set_style_bg_color(chart, lv_color_hex(UI_PANEL), 0);
   lv_obj_set_style_border_width(chart, 0, 0);
   lv_obj_set_style_pad_all(chart, 8, 0);
   lv_chart_set_type(chart, LV_CHART_TYPE_BAR);
-  lv_chart_set_point_count(chart, MAX_AMOUNT_CELLS);
+  lv_chart_set_point_count(chart, CELLS_PER_PAGE);
   lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, 2500, 4300);
   lv_chart_set_div_line_count(chart, 5, 0);
   for (auto& v : plotted_cells) v = LV_CHART_POINT_NONE;
   cell_series = lv_chart_add_series(chart, lv_color_hex(UI_ACCENT), LV_CHART_AXIS_PRIMARY_Y);
   lv_chart_set_series_ext_y_array(chart, cell_series, plotted_cells);
-  label(page_cells, 24, 440, 976, "Esquerda: C1 | direita: ultima celula | falhas de leitura: barras ausentes",
-        &lv_font_montserrat_14, UI_MUTED);
-  footer_label = label(root, 24, 565, 976, "A iniciar toque...", &lv_font_montserrat_14, UI_MUTED);
+  for (unsigned i = 0; i < CELLS_PER_PAGE; ++i) {
+    int x = 32 + int((2 * i + 1) * 960 / (2 * CELLS_PER_PAGE)) - 24;
+    cell_numbers[i] = label(page_cells, x, 376, 48, "", &lv_font_montserrat_20, UI_MUTED);
+    lv_obj_set_style_text_align(cell_numbers[i], LV_TEXT_ALIGN_CENTER, 0);
+  }
+  lv_obj_t* prev = panel(page_cells, 24, 418, 164, 48, UI_ACCENT);
+  label(prev, 14, 12, 140, "< Anteriores", &lv_font_montserrat_20, UI_BG);
+  lv_obj_t* next = panel(page_cells, 836, 418, 164, 48, UI_ACCENT);
+  label(next, 14, 12, 140, "Seguintes >", &lv_font_montserrat_20, UI_BG);
+  cell_page_label = label(page_cells, 212, 430, 600, "", &lv_font_montserrat_20, UI_MUTED);
+  lv_obj_set_style_text_align(cell_page_label, LV_TEXT_ALIGN_CENTER, 0);
+  footer_label = label(root, 24, 566, 976, "ESTADO: SEM DADOS", &lv_font_montserrat_20, UI_MUTED);
+  lv_obj_set_style_text_align(footer_label, LV_TEXT_ALIGN_CENTER, 0);
 }
 
 void toggle_pump_local() {
@@ -285,6 +326,41 @@ void change_page() {
     lv_obj_remove_flag(page_main, LV_OBJ_FLAG_HIDDEN);
   }
   text(navigation, cells_visible ? "< Principal" : "Cell Monitor >");
+  refresh_requested = true;
+}
+
+void adjust_limit(bool charge, bool increase) {
+  auto& settings = datalayer.battery.settings;
+  uint16_t& target = charge ? settings.max_user_set_charge_dA : settings.max_user_set_discharge_dA;
+  int old = target;
+  // Values from other interfaces may be off-grid: preserve exact +/-5 A,
+  // clamp the result, never wrap uint16_t. Do not alter anything on boot.
+  int next = old + (increase ? 50 : -50);
+  if (next < 0) next = 0;
+  if (next > 400) next = 400;
+  if (next == old) return;
+  target = static_cast<uint16_t>(next);
+  refresh_requested = true;
+  Serial.printf("LCD5B: user %s limit=%d dA; no NVM save\n", charge ? "charge" : "discharge", next);
+}
+
+int hit_target(int x, int y) {
+  if (x >= 800 && x < 1000 && y >= 12 && y < 64) return 1;
+  if (cells_visible) {
+    if (y >= 494 && y < 542) {
+      if (x >= 24 && x < 188) return 7;
+      if (x >= 836 && x < 1000) return 8;
+    }
+    return 0;
+  }
+  if (x >= 700 && x < 982 && y >= 447 && y < 498) return 2;
+  bool charge = x >= 254 && x < 318;
+  bool discharge = x >= 584 && x < 648;
+  if (charge || discharge) {
+    if (y >= 432 && y < 480) return charge ? 3 : 5;
+    if (y >= 486 && y < 534) return charge ? 4 : 6;
+  }
+  return 0;
 }
 
 bool touch_read(uint16_t reg, uint8_t* bytes, size_t len) {
@@ -349,6 +425,9 @@ void poll_touch(uint32_t now) {
     if (released && down && valid) {
       if (target == 1) change_page();
       else if (target == 2) toggle_pump_local();
+      else if (target >= 3 && target <= 6) adjust_limit(target <= 4, target == 3 || target == 5);
+      else if (target == 7 && cell_page > 0) { --cell_page; refresh_requested = true; }
+      else if (target == 8 && cell_page < 6) { ++cell_page; refresh_requested = true; }
     }
     down = valid = false;
     return;
@@ -365,13 +444,37 @@ void poll_touch(uint32_t now) {
   if (!down) {
     down = valid = true;
     start_ms = now; sx = x; sy = y;
-    target = (x >= 800 && x < 1000 && y >= 12 && y < 64) ? 1 :
-             (!cells_visible && x >= 692 && x < 984 && y >= 431 && y < 482) ? 2 : 0;
+    target = hit_target(x, y);
     Serial.printf("LCD5B: touch x=%d y=%d target=%d\n", x, y, target);
   } else if (abs(x - sx) > 30 || abs(y - sy) > 30) valid = false;
 }
 
+void refresh_wifi() {
+  // Only query existing Wi-Fi state: no scans, reconnects or credential writes.
+  bool connected = WiFi.status() == WL_CONNECTED;
+  int level = 0;
+  String name;
+  if (connected) {
+    int rssi = WiFi.RSSI();
+    level = rssi >= -55 ? 4 : rssi >= -65 ? 3 : rssi >= -75 ? 2 : 1;
+    name = WiFi.SSID();
+  } else {
+    auto mode = WiFi.getMode();
+    name = (mode == WIFI_MODE_AP || mode == WIFI_MODE_APSTA) ? "AP / sem ligacao a rede" : "SEM REDE";
+  }
+  String caption = String("| ") + name;
+  text(wifi_label, caption.c_str());
+  static int previous = -1;
+  if (level != previous) {
+    for (unsigned i = 0; i < 4; ++i)
+      lv_obj_set_style_bg_color(wifi_bars[i], lv_color_hex(int(i) < level ? UI_ACCENT : 0x3A4B58), 0);
+    lv_obj_set_style_text_color(wifi_icon, lv_color_hex(connected ? UI_ACCENT : UI_MUTED), 0);
+    previous = level;
+  }
+}
+
 void refresh_data() {
+  refresh_wifi();
   // Read-only best-effort snapshot, NOT an atomic/validated BMS measurement.
   const auto& b = datalayer.battery;
   bool live = battery_detected && b.status.CAN_battery_still_alive > 0;
@@ -399,14 +502,19 @@ void refresh_data() {
   } else {
     unsigned n = b.info.number_of_cells;
     if (n > MAX_AMOUNT_CELLS) n = MAX_AMOUNT_CELLS;
-    unsigned count = n ? n : 1, valid_count = 0, mini = 0, maxi = 0;
+    unsigned valid_count = 0, mini = 0, maxi = 0;
     int32_t lo = INT32_MAX, hi = 0;
-    bool changed = lv_chart_get_point_count(chart) != count;
-    if (changed) lv_chart_set_point_count(chart, count);
-    for (unsigned i = 0; i < MAX_AMOUNT_CELLS; ++i) {
-      uint16_t mv = (live && i < n) ? b.status.cell_voltages_mV[i] : 0;
+    bool changed = refresh_requested;
+    for (unsigned i = 0; i < CELLS_PER_PAGE; ++i) {
+      unsigned index = cell_page * CELLS_PER_PAGE + i;
+      snprintf(s, sizeof(s), "%u", index + 1); text(cell_numbers[i], s);
+      uint16_t mv = (live && index < n) ? b.status.cell_voltages_mV[index] : 0;
       int32_t v = mv ? mv : LV_CHART_POINT_NONE;
       if (plotted_cells[i] != v) { plotted_cells[i] = v; changed = true; }
+    }
+    // Pack-wide statistics/scale (not only the 14 visible cells).
+    for (unsigned i = 0; i < n; ++i) {
+      uint16_t mv = live ? b.status.cell_voltages_mV[i] : 0;
       if (mv) {
         ++valid_count;
         if (mv < lo) { lo = mv; mini = i + 1; }
@@ -415,6 +523,11 @@ void refresh_data() {
     }
     snprintf(s, sizeof(s), "CELL MONITOR / %u celulas / %u leituras", n, valid_count);
     text(cell_count_label, s);
+    snprintf(s, sizeof(s), "C%u a C%u / 98 posicoes / %u de 7",
+             cell_page * 14 + 1, cell_page * 14 + 14, cell_page + 1);
+    text(cell_page_label, s);
+    if (n && n != PACK_CELLS)
+      text(cell_count_label, "ATENCAO: contagem BMS diferente de 98; rever configuracao");
     if (valid_count) {
       snprintf(s, sizeof(s), "MIN %ld mV (C%u)     MAX %ld mV (C%u)     DELTA %ld mV",
                long(lo), mini, long(hi), maxi, long(hi - lo)); text(cell_stats, s);
@@ -433,16 +546,20 @@ void refresh_data() {
     }
     if (changed) lv_chart_refresh(chart);
   }
-  snprintf(s, sizeof(s), "%s | Leitura apenas | CAN* usa timeout do BMS | %lus",
-           touch_ready ? "Toque ativo" : "Toque indisponivel", (unsigned long)(millis() / 1000));
-  text(footer_label, s);
+  // Dala datalayer: positive W = charging, negative W = discharging.
+  // CAN timeout is shared with the base: not per-sample freshness.
+  const int32_t watts = b.status.active_power_W;
+  const char* state = !live ? "ESTADO: SEM DADOS" :
+                      watts > 0 ? "ESTADO: A CARREGAR" :
+                      watts < 0 ? "ESTADO: A DESCARREGAR" : "ESTADO: EM REPOUSO";
+  text(footer_label, state);
 }
 }  // namespace
 
 void init_display() {
   if (attempted) return;
   attempted = true;
-  Serial.println("LCD5B: dashboard UI-01 / LVGL 9.3.0 / pump LOCAL ONLY");
+  Serial.println("LCD5B: UI-03 / equal cards / WiFi SSID / power state / pump LOCAL");
 
   // Register all LCD/I2C pins with the base's conflict detector.
   if (!esp32hal->alloc_pins("LCD5B", 14,38,18,17,10,39,0,45,48,47,21,
@@ -516,10 +633,11 @@ void update_display() {
   poll_touch(now);
   static uint32_t last_update = 0;
   static bool last_page = false;
-  if (uint32_t(now - last_update) >= 1000 || last_page != cells_visible) {
+  if (uint32_t(now - last_update) >= 1000 || last_page != cells_visible || refresh_requested) {
     last_update = now;
     last_page = cells_visible;
     refresh_data();
+    refresh_requested = false;
   }
   lv_timer_handler();
 }
