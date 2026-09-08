@@ -37,7 +37,7 @@
 #include "src/inverter/INVERTERS.h"
 
 #if !defined(HW_LILYGO) && !defined(HW_LILYGO2CAN) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_BECOM) && \
-    !defined(HW_WAVESHARE) && !defined(HW_DEVKIT) && !defined(HW_DFROBOT_EDGE101)
+    !defined(HW_WAVESHARE) && !defined(HW_WAVESHARE_LCD_5B) && !defined(HW_DEVKIT) && !defined(HW_DFROBOT_EDGE101)
 #error You must select a target hardware!
 #endif
 
@@ -78,7 +78,7 @@ void init_serial() {
   // availableForWrite() report ring-buffer space rather than raw FIFO space.
   Serial.setTxBufferSize(1024);
   Serial.begin(115200);
-#if (HW_LILYGO2CAN || HW_BECOM || HW_WAVESHARE)
+#if (HW_LILYGO2CAN || HW_BECOM || HW_WAVESHARE || HW_WAVESHARE_LCD_5B)
   // Wait up to 100ms for Serial to be available. On the ESP32S3 Serial is
   // provided by the USB controller, so will only work if the board is connected
   // to a computer.
@@ -806,7 +806,9 @@ void setup() {
   init_equipment_stop_button();
 
   // BOOT button at runtime is used as an input for various things
+#if !defined(HW_WAVESHARE_LCD_5B)
   pinMode(0, INPUT_PULLUP);
+#endif
 
   check_reset_reason();
 
