@@ -753,6 +753,12 @@ void setup() {
   init_stored_settings();
 
   // AP-button recovery must always run
+#if defined(HW_WAVESHARE_LCD_5B)
+  const uint32_t connectivity_stack_size = 16384;
+#else
+  const uint32_t connectivity_stack_size = 4096;
+#endif
+    
   xTaskCreatePinnedToCore(
       (TaskFunction_t)&connectivity_loop,
       "connectivity_loop",
