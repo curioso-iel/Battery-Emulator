@@ -1,7 +1,7 @@
 // A realtime display of battery status and events, using a I2C-connected 128x64
 // OLED display based on the SSD1306 driver.
 
-#ifndef SMALL_FLASH_DEVICE
+#if !defined(SMALL_FLASH_DEVICE) && !defined(HW_WAVESHARE_LCD_5B)
 
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
