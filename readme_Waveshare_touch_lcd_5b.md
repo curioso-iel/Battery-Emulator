@@ -33,7 +33,7 @@ This is **community support in this fork**, not a claim of upstream acceptance, 
 | Display board | **Waveshare ESP32-S3-Touch-LCD-5B**, SKU 28151 |
 | Screen | Capacitive touch, **1024 x 600**, RGB interface |
 | MCU / memory | ESP32-S3, 16 MB flash, 8 MB PSRAM |
-| Battery | Repurposed Kia Soul battery, 98 cells reported |
+| Battery | Repurposed Kia Soul III 37501-Q4002 64kWh |
 | Inverter | GoodWe **GW10K-ET PLUS+** |
 | Optional pump bridge | Original **LilyGo T-CAN485**, ESP32; not T-2CAN |
 | Pump used in bench tests | Hyundai/Kia rear battery coolant pump **375W5-K4000 OS EV BAT** |
