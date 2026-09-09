@@ -28,15 +28,15 @@ This is **community support in this fork**, not a claim of upstream acceptance, 
 
 ## Hardware and tested setup
 
-Setup used during development
-
-| Display board: Waveshare ESP32-S3-Touch-LCD-5B SKU 28151
-| Screen: Capacitive touch, 1024 x 600, RGB interface
-| MCU & memory: ESP32-S3, 16 MB flash, 8 MB PSRAM
-| Battery: Repurposed Kia Soul III battery 37501-Q4002 64kWh
-| Inverter: GoodWe GW10K-ET PLUS+
-| Optional pump bridge: LilyGo TTGO T-CAN485
-| Pump used in bench tests | Hyundai/Kia rear battery coolant pump 375W5-K4000 OS EV BAT
+| Item | Setup used during development |
+|---|---|
+| Display board | **Waveshare ESP32-S3-Touch-LCD-5B**, SKU 28151 |
+| Screen | Capacitive touch, **1024 x 600**, RGB interface |
+| MCU / memory | ESP32-S3, 16 MB flash, 8 MB PSRAM |
+| Battery | Repurposed Kia Soul battery, 98 cells reported |
+| Inverter | GoodWe **GW10K-ET PLUS+** |
+| Optional pump bridge | Original **LilyGo T-CAN485**, ESP32; not T-2CAN |
+| Pump used in bench tests | Hyundai/Kia rear battery coolant pump **375W5-K4000 OS EV BAT** |
 
 The 800 x 480 LCD-5, other screen sizes and T-2CAN must not be assumed pin- or firmware-compatible. The underlying Battery-Emulator supports other protocols, but this particular display layout and commissioning evidence concern the setup above.
 
@@ -100,6 +100,7 @@ The user reported a substantial improvement with UI188. Later, heavier views sti
 Tap **STATE OF CHARGE** to open **SOC WINDOW**.
 
 | Control | Behavior |
+|---|---|
 | Min SOC | Adjustable from **-10% to 50%** |
 | Max SOC | Adjustable from **50% to 100%** |
 | Arrows | **10 percentage points** per press, clamped at field bounds |
@@ -126,6 +127,7 @@ Reported SOC = 100 x (real SOC - minimum) / (maximum - minimum)
 The input is clamped to the selected window. For **10%-100%**:
 
 | Real SOC | Rescaled SOC |
+|---:|---:|
 | 10% | 0% |
 | 55% | 50% |
 | 100% | 100% |
@@ -195,6 +197,7 @@ The developed LilyGo receiver has a **750 ms local request watchdog** and attemp
 PB1 is a custom, dedicated point-to-point binary protocol, **not Modbus**.
 
 | Parameter | Value |
+|---|---|
 | RS485 | 19200 baud, 8 data bits, no parity, 1 stop bit |
 | Packet | 20 bytes, starts `A5 5A`, version 1 |
 | Types | Request 1, reply 2 |
@@ -338,6 +341,7 @@ The existing release workflow also expects the fork's web-installer repository a
 ## Implementation and pin assignments
 
 | Function | LCD-5B mapping |
+|---|---|
 | Battery/inverter CAN TX / RX | **GPIO15 / GPIO16** |
 | RS485 UART TX / RX | **GPIO44 / GPIO43** |
 | Display/touch I2C SDA / SCL | **GPIO8 / GPIO9** |
@@ -410,6 +414,7 @@ Keep web credentials and firmware access protected. Review generated logs and co
 Paths below describe the implementation, not an exhaustive diff against every upstream revision.
 
 | File | Role |
+|---|---|
 | [`platformio.ini`](platformio.ini) | LCD-5B build environment, pinned dependencies and SDK input |
 | [`Software/Software.cpp`](Software/Software.cpp) | Board-specific task stack, GPIO0 exclusion and pump startup |
 | [`Software/src/devboard/hal/hal.cpp`](Software/src/devboard/hal/hal.cpp) | Selects the LCD-5B HAL |
@@ -435,7 +440,7 @@ Planned or pending work includes:
 
 - Publish the compatible standalone LilyGo receiver and its wiring/test guide.
 - Refine menu layout and control sizes without regressing responsiveness.
-- Add a local **Portuguese (Portugal)** text catalogue; English is currently implemented. Other Languages on demand.
+- Add a local **Portuguese (Portugal)** text catalogue; English is currently implemented. Other languages on demand
 - Reduce logging-related stalls and validate task/heap behavior under sustained load.
 - Validate pump control, current feedback, RS485 loss/recovery and thermal hysteresis end to end.
 - Verify SOC persistence and inverter behavior for the selected window.
