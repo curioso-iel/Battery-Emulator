@@ -17,6 +17,7 @@
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
+#include "src/communication/pump/pump_link.h"
 #include "src/devboard/espnow/espnow.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
@@ -855,6 +856,9 @@ void setup() {
       logging.println("MQTT failed to initialize. MQTT will be disabled.");
     }
   }
+
+  // Start after battery/inverter/shunt setup; preserve existing UART owners.
+  pump_link::begin();
 
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
                           esp32hal->CORE_FUNCTION_CORE());
