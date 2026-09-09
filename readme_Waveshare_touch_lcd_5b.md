@@ -240,6 +240,8 @@ The implementation checks the UART driver and return values and leaves the pump 
 - The correct **LCD-5B** board and a USB data cable.
 - A backup of the currently working source/configuration before changing versions.
 
+NOTE: Windows path length: With  packages_dir = .pio/packages , long project paths can make the generated build command exceed Windows’ command-line limit. Use a short project path, such as  C:\BE , or configure  packages_dir  locally to use a short external directory. Keep machine-specific paths out of the shared  platformio.ini .
+
 Get this fork and run commands from its root:
 
 ```sh
