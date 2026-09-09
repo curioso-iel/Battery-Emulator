@@ -1,0 +1,68 @@
+#pragma once
+// UI-191 English catalogue. Translations belong here, not in control logic.
+// PT-PT follows later; this revision supports English only.
+namespace ui_text {
+constexpr const char* no_wifi = "NO WI-FI";
+constexpr const char* access_point = "ACCESS POINT";
+constexpr const char* can_wait = "CAN: WAITING";
+constexpr const char* can_live = "CAN: RECEIVING";
+constexpr const char* can_missing = "CAN: NO DATA";
+constexpr const char* cells = "Cell Monitor >";
+constexpr const char* dashboard = "< Dashboard";
+constexpr const char* soc = "STATE OF CHARGE";
+constexpr const char* soh = "STATE OF HEALTH";
+constexpr const char* temperature = "MAX TEMPERATURE";
+constexpr const char* voltage = "VOLTAGE";
+constexpr const char* current = "CURRENT";
+constexpr const char* power = "POWER";
+constexpr const char* charge_limit = "CHARGE LIMIT";
+constexpr const char* discharge_limit = "DISCHARGE LIMIT";
+constexpr const char* available = "BMS: %.1f A";
+constexpr const char* available_missing = "BMS: -- A";
+constexpr const char* pump = "COOLANT PUMP";
+constexpr const char* no_link = "NO LINK";
+constexpr const char* link_off = "LINK DISABLED";
+constexpr const char* no_feedback = "NO FEEDBACK";
+constexpr const char* pump_unknown = "Pump state unknown";
+constexpr const char* pump_check = "Check pump CAN / alarm";
+constexpr const char* manual = "MANUAL";
+constexpr const char* automatic = "AUTO";
+constexpr const char* command = "MANUAL COMMAND";
+constexpr const char* pump_current = "PUMP CURRENT";
+constexpr const char* close = "Close";
+constexpr const char* manual_zero = "Manual zero";
+constexpr const char* auto_rule = "AUTO: >30 C / ends at <=25 C";
+constexpr const char* zero_note = "Auto remains enabled. Close does not stop.";
+constexpr const char* link_blocked = "Controls locked: no RS485 link";
+constexpr const char* link_disabled = "Controls locked: RS485 unavailable";
+constexpr const char* feedback_blocked = "Controls locked: no valid pump feedback";
+constexpr const char* accepted = "Command accepted";
+constexpr const char* refused = "Command rejected";
+constexpr const char* sent = "Sent %u%%";
+constexpr const char* temperature_missing = "Temperature unavailable";
+constexpr const char* cells_title = "CELL MONITOR";
+constexpr const char* readings = "%u / 98 readings";
+constexpr const char* count_mismatch = "BMS count %u != 98";
+constexpr const char* cell_stats = "MIN %.3f V (C%u)    MAX %.3f V (C%u)    DELTA %ld mV";
+constexpr const char* cell_stats_missing = "MIN -- V    MAX -- V    DELTA -- mV";
+constexpr const char* cell_range = "3.5-4.2 V | %u below / %u above | %u missing";
+constexpr const char* no_data = "NO DATA";
+constexpr const char* charging = "CHARGING";
+constexpr const char* discharging = "DISCHARGING";
+constexpr const char* idle = "IDLE";
+constexpr const char* soc_window = "SOC WINDOW";
+constexpr const char* soc_min = "MIN SOC";
+constexpr const char* soc_max = "MAX SOC";
+constexpr const char* soc_range = "Min: -10 to 50%   |   Max: 50 to 100%";
+constexpr const char* soc_note = "Scaling maps this window to 0-100% for the inverter.";
+constexpr const char* soc_edit = "Edit values, then Save. Dashboard shows real SOC.";
+constexpr const char* soc_invalid = "Invalid window: Min must be below Max.";
+constexpr const char* soc_conflict = "SOC settings changed elsewhere. Cancel and reopen.";
+constexpr const char* soc_saving = "Applying settings...";
+constexpr const char* soc_applied = "Applied. Storage requested.";
+constexpr const char* soc_save = "Save";
+constexpr const char* soc_cancel = "Cancel";
+constexpr const char* soc_preset = "10-100%";
+constexpr const char* scale_on = "Rescale SOC: ON";
+constexpr const char* scale_off = "Rescale SOC: OFF";
+}
