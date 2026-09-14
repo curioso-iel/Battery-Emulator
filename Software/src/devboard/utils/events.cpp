@@ -226,6 +226,7 @@ void init_events(void) {
   events.entries[EVENT_BYD_CONTACTOR_FORCE_OPEN].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BYD_CONTACTOR_OPEN_REQ].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BYD_CONTACTOR_CLOSE_REQ].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BYD_CONTACTOR_CLOSE_BLOCKED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY2_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY3_SOC_RESET_SUCCESS].level = EVENT_LEVEL_INFO;
@@ -441,15 +442,15 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
     case EVENT_CAN_BATTERY_DETECTED:
       return "Successfully communicating with battery. Battery detected!";
     case EVENT_CAN_BATTERY2_DETECTED:
-      return "Successfully communicating with secondary battery. Secondary battery detected!";
+      return "Successfully communicating with 2ⁿᵈ battery. 2ⁿᵈ battery detected!";
     case EVENT_CAN_BATTERY3_DETECTED:
-      return "Successfully communicating with third battery. Third battery detected!";
+      return "Successfully communicating with 3ʳᵈ battery. 3ʳᵈ battery detected!";
     case EVENT_CAN_BATTERY_MISSING:
       return "Battery not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_BATTERY2_MISSING:
-      return "Secondary battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+      return "2ⁿᵈ battery not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_BATTERY3_MISSING:
-      return "Third battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+      return "3ʳᵈ battery not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_CHARGER_DETECTED:
       return "Successfully communicating with charger. Charger detected!";
     case EVENT_CAN_CHARGER_MISSING:
@@ -566,6 +567,8 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
     case EVENT_BYD_CONTACTOR_CLOSE_REQ:
       return "Contactor close commanded. The battery precharges and closes its contactors. Data: 1 = cancelled a "
              "pending open.";
+    case EVENT_BYD_CONTACTOR_CLOSE_BLOCKED:
+      return "Contactor close blocked. Data bits: 1 = equipment stop, 2 = inverter denied, 4 = system fault.";
     case EVENT_BATTERY_SOC_RESET_SUCCESS:
     case EVENT_BATTERY2_SOC_RESET_SUCCESS:
     case EVENT_BATTERY3_SOC_RESET_SUCCESS:
@@ -575,9 +578,9 @@ static String get_event_base_message(EVENTS_ENUM_TYPE event) {
     case EVENT_BATTERY3_SOC_RESET_FAIL:
       return "SOC reset routine failed - check SOC is < 15 or > 90, and contactors are open.";
     case EVENT_VOLTAGE_DIFFERENCE_BAT2:
-      return "Too large voltage diff between the batteries. Second battery cannot join the DC-link";
+      return "Too large voltage diff between the batteries. 2ⁿᵈ battery cannot join the DC-link";
     case EVENT_VOLTAGE_DIFFERENCE_BAT3:
-      return "Too large voltage diff between the batteries. Third battery cannot join the DC-link";
+      return "Too large voltage diff between the batteries. 3ʳᵈ battery cannot join the DC-link";
     case EVENT_SOH_DIFFERENCE:
       return "Large deviation in State of health between packs. Inspect battery.";
     case EVENT_SOH_LOW:
