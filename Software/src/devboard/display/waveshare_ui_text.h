@@ -65,4 +65,4 @@ constexpr const char* soc_cancel = "Cancel";
 constexpr const char* soc_preset = "10-100%";
 constexpr const char* scale_on = "Rescale SOC: ON";
 constexpr const char* scale_off = "Rescale SOC: OFF";
-}
+}  // namespace ui_text

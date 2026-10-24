@@ -45,4 +45,3 @@
 #define LV_BUILD_EXAMPLES 0
 
 #endif
-
