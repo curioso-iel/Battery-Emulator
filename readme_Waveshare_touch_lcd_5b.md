@@ -2,9 +2,13 @@
 
 **A community-developed 1024 x 600 touchscreen port, with local battery controls and an experimental RS485 coolant-pump link.**
 
-This guide describes the Waveshare work in the [casaantoes-eng/Battery-Emulator fork](https://github.com/casaantoes-eng/Battery-Emulator), based on [Dala's Battery-Emulator](https://github.com/dalathegreat/Battery-Emulator).
+This guide describes the Waveshare work in the [curioso-iel/Battery-Emulator fork](https://github.com/curioso-iel/Battery-Emulator), based on [Dala's Battery-Emulator](https://github.com/dalathegreat/Battery-Emulator).
 
-The fork adds a dedicated board definition, RGB display and touch driver, an English dashboard, a single-page 98-cell monitor, local current/SOC controls, and a Waveshare-side pump controller. The latest source reviewed for this guide contains **UI200** and the **PDS199 RS485 RX fix**.
+The fork adds dedicated LCD board support using the existing ESP32-S3 profile, RGB display and touch driver, an English dashboard, a single-page 98-cell monitor, local current/SOC controls, and a Waveshare-side pump controller. The integration retains **UI200** and the **PDS199 RS485 RX fix**, adapted to the current `datalayer.battery_settings` interface.
+
+**Documentation checkpoint: 24 October 2026 (PDS221).** The reviewed source snapshot is `f54a242ea83317f85fc4b692b351d16fc4a63992`, after PR #1 was merged into this fork. Its Dala base is `7d03ad5d07a5cd8b5fb1a0d6e5b8608b231f5184`: 548 upstream files are byte-identical and five have LCD integration changes; no upstream file is missing. The local project supplied by the owner differs in seven formatted source/header files, with no detected instruction/value changes apart from include ordering. This is a source comparison, not proof of binary identity.
+
+The update was imported from a source snapshot, not an upstream-history merge. GitHub's ahead/behind counters therefore do not measure the content differences described here. Do not discard fork commits just to clear those counters.
 
 This is **community support in this fork**, not a claim of upstream acceptance, official Waveshare certification or production readiness. Do not assume the upstream web installer provides this variant. Use the source-build instructions below.
 
@@ -33,7 +37,7 @@ This is **community support in this fork**, not a claim of upstream acceptance, 
 | Display board | **Waveshare ESP32-S3-Touch-LCD-5B**, SKU 28151 |
 | Screen | Capacitive touch, **1024 x 600**, RGB interface |
 | MCU / memory | ESP32-S3, 16 MB flash, 8 MB PSRAM |
-| Battery | Repurposed Kia Soul III 37501-Q4002 64kWh |
+| Battery | Repurposed Kia 64 kWh pack, reference **37501-Q4002**, 98 cells; catalogued for Niro EV 2019-2022 (earlier development notes called it Soul) |
 | Inverter | GoodWe **GW10K-ET PLUS+** |
 | Optional pump bridge | Original **LilyGo T-CAN485**, ESP32; not T-2CAN |
 | Pump used in bench tests | Hyundai/Kia rear battery coolant pump **375W5-K4000 OS EV BAT** |
@@ -58,6 +62,8 @@ Nine consistently sized cards provide:
 - **Coolant-pump status**, including manual/automatic command when ready and current feedback.
 
 The header shows Wi-Fi status, SSID, signal-strength bars, CAN-data availability, **Rescale SOC**, and **Cell Monitor** navigation. The footer distinguishes charging, discharging, idle and no-data states. Battery-Emulator's sign convention is retained: positive power means charging.
+
+The dashboard reads the **primary battery pack**. It is not an aggregate multi-pack dashboard, even though the underlying firmware supports aggregate inverter limits.
 
 Missing battery data is shown as unavailable, not filled with demonstration readings. `CAN: RECEIVING` uses the base firmware's battery detection/alive indication; it is not an independently timestamped validity check for every displayed value.
 
@@ -235,17 +241,17 @@ The implementation checks the UART driver and return values and leaves the pump 
 ### Prerequisites
 
 - Git installed and available to build tools.
-- PlatformIO Core; development used **6.1.19**.
+- PlatformIO Core **6.2.0**, used for the validated build. The earlier 6.1.19 installation was incompatible with this platform.
 - Network access for dependency downloads.
 - The correct **LCD-5B** board and a USB data cable.
 - A backup of the currently working source/configuration before changing versions.
 
-NOTE: Windows path length: With  packages_dir = .pio/packages , long project paths can make the generated build command exceed Windows’ command-line limit. Use a short project path, such as  C:\BE , or configure  packages_dir  locally to use a short external directory. Keep machine-specific paths out of the shared  platformio.ini .
+On Windows, long dependency paths can exceed command-line limits. The validated installation kept its working project in place and used the external package directory `C:\Users\Admin\.platformio\packages-waveshare`. Set `PLATFORMIO_PACKAGES_DIR` in the terminal session as shown below; keep machine-specific paths out of the shared `platformio.ini`. The repository does not currently set `packages_dir = .pio/packages`.
 
 Get this fork and run commands from its root:
 
 ```sh
-git clone https://github.com/casaantoes-eng/Battery-Emulator.git
+git clone https://github.com/curioso-iel/Battery-Emulator.git
 cd Battery-Emulator
 ```
 
@@ -256,16 +262,16 @@ Cloning preserves commit metadata for the build. A source ZIP can also be used; 
 | Setting | Current fork configuration |
 |---|---|
 | Environment | **`waveshare_LCD_5B`**, case-sensitive |
-| Platform | pioarduino **55.03.311** release ZIP |
-| Framework in reviewed build | Arduino-ESP32 3.3.11 / ESP-IDF 5.5.5 |
+| Platform | pioarduino **55.03.312-1** release ZIP |
+| Framework in validated local build | Arduino-ESP32 **3.3.12** / ESP-IDF **5.5.5** |
 | Board profile | `esp32s3_flash_16MB` |
 | PSRAM memory type | `qio_opi` |
 | LovyanGFX | **1.2.26** |
 | LVGL | **9.3.0** |
-| Package directory | `.pio/packages` in the current distribution configuration |
+| Package directory | PlatformIO default unless overridden locally; validated Windows setup used `PLATFORMIO_PACKAGES_DIR` |
 | Specific SDK input | `sdkconfig.waveshare.defaults` |
 
-Do not replace the environment with `waveshare_330`: that is a different board. Local package storage avoids a user-specific path, but pioarduino also manages bootstrap tools in its core directory; this is not complete isolation of every installed tool.
+Do not replace the environment with `waveshare_330`: that is a different board. pioarduino also manages bootstrap tools and installed platforms in its core directory; an external package directory does not isolate every tool.
 
 ### Compile
 
@@ -276,34 +282,21 @@ pio run -e waveshare_LCD_5B
 If `pio` is not available in a Windows PowerShell terminal, this was the executable location in the development installation:
 
 ```powershell
-& "$env:USERPROFILE/.platformio/penv/Scripts/platformio.exe" run -e waveshare_LCD_5B
+$env:PLATFORMIO_PACKAGES_DIR = "$env:USERPROFILE\.platformio\packages-waveshare"
+& "$env:USERPROFILE\.platformio\penv\Scripts\python.exe" -m platformio run -e waveshare_LCD_5B
 ```
 
 Use your actual PlatformIO executable location if it differs. Run one complete command at a time; do not paste terminal prefixes such as `PS ...>` or continuation prompts `>>`.
 
 ### Windows tool-path workaround
 
-The development installation required two fixes in the installed pioarduino `builder/frameworks/espidf.py`: the GCC path for linker-script preprocessing and the `objdump` path. The script expected a flat `bin` directory, while the package used a nested `xtensa-esp-elf/bin` directory.
+The validated Windows build required a separately supplied **PDS212** correction to the installed pioarduino `builder/frameworks/espidf.py`. Linker-script generation failed with `WinError 2` because the selected toolchain's `objdump` executable was under `xtensa-esp-elf/bin`, rather than the assumed flat `bin` directory.
 
-This repository includes [`tools/fix_pioarduino_tool_paths.py`](tools/fix_pioarduino_tool_paths.py) to package that workaround. It is **not run automatically** by the firmware build or by the current CI workflow.
+The corrected resolver locates the executable within the selected toolchain and fails explicitly if it is absent. It was syntax-checked and tested against five isolated resolver cases before the full Windows build succeeded. The installed file was backed up as `espidf.py.bak-PDS212`.
 
-For the known path error, stop other builds, preview first:
+**This installed-platform correction is not included or automatically applied by this repository.** A fresh Windows installation has not been validated as reproducible without it. If the same error occurs, capture the failing command, platform version and actual toolchain paths before requesting the matching fix. Stop builds and preserve a backup before editing any shared installed platform.
 
-```powershell
-& "$env:USERPROFILE/.platformio/python3/python.exe" ./tools/fix_pioarduino_tool_paths.py
-```
-
-Read the identified platform and proposed changes. To apply explicitly:
-
-```powershell
-& "$env:USERPROFILE/.platformio/python3/python.exe" ./tools/fix_pioarduino_tool_paths.py --apply
-```
-
-Alternatively, use an installed Python 3 interpreter, such as `py -3`, if the PlatformIO Python path differs.
-
-The installer recognizes only the supported platform version and known expressions, accepts the earlier manual fixes, creates a timestamped backup, checks syntax and is idempotent. Multiple matching platforms require an explicit `--platform-dir`. It modifies a shared installed platform file, so do not run it during another build. Restore the printed backup to roll back.
-
-The manual fix enabled a successful Windows build during development. The distributable installer passed host tests, but **its application on a fresh machine still needs validation**. Do not use it as a general repair for missing manifests, locked files or unrelated compiler errors. Do not reinstall all packages or edit generated `build.ninja` files as a first response.
+The older PDS203 helper targeted **55.03.311** and is not the repair for the current **55.03.312-1** installation. Do not use old path-patching instructions, reinstall all packages or edit generated `build.ninja` files as a first response to unrelated errors.
 
 ### Upload and monitor
 
@@ -316,6 +309,13 @@ pio device monitor -p COM4 -b 115200
 
 COM4 was used for Waveshare and COM5 for LilyGo during development; **these are not fixed assignments**. Close any monitor holding the upload port first. No full-flash erase is required for the documented source updates.
 
+PowerShell equivalent for the validated Waveshare port, from the project root:
+
+```powershell
+$env:PLATFORMIO_PACKAGES_DIR = "$env:USERPROFILE\.platformio\packages-waveshare"
+& "$env:USERPROFILE\.platformio\penv\Scripts\python.exe" -m platformio run -e waveshare_LCD_5B -t upload --upload-port COM4
+```
+
 Verify the UI200 banner and, when using the pump module, the PDS199 RX setup result. Existing `P194` diagnostics remain in the pump source intentionally; their label does not mean the working RX fix is absent.
 
 ### Configuration files and generated files
@@ -323,10 +323,12 @@ Verify the UI200 banner and, when using the pump module, the PDS199 RX setup res
 Keep these source inputs:
 
 - [`sdkconfig.be_size.defaults`](sdkconfig.be_size.defaults): shared size/build settings.
-- [`sdkconfig.waveshare.defaults`](sdkconfig.waveshare.defaults): LCD-5B-specific copy of base settings plus the USB console selection.
+- [`sdkconfig.waveshare.defaults`](sdkconfig.waveshare.defaults): LCD-5B-specific defaults, including USB console selection and explicit disabling of `CONFIG_NEWLIB_NANO_FORMAT` to retain floating-point printf formatting.
 - [`include/lv_conf.h`](include/lv_conf.h): LVGL configuration.
 
-The `.gitignore` must allow both intentional `.defaults` files. In the workflow used here, `sdkconfig.defaults` and `sdkconfig.waveshare_LCD_5B` are generated working configuration, not the place to maintain permanent board changes. Ignoring a path does not remove it if already tracked.
+The `.gitignore` allows both intentional `.defaults` files. `sdkconfig.defaults` and `sdkconfig.waveshare_LCD_5B` are generated working configuration, not the preferred place to maintain permanent board changes.
+
+**The owner deliberately keeps [`sdkconfig.waveshare_LCD_5B`](sdkconfig.waveshare_LCD_5B) tracked as a configuration snapshot.** Its values match the supplied validated local project; only CRLF/LF line endings differ in the GitHub archive. Ignoring a path does not remove it if already tracked. Do not delete this snapshot as routine cleanup, and do not assume generated settings are portable across future platform versions.
 
 The board-specific defaults currently duplicate the base contents; keep them synchronized deliberately if shared settings change. Do not blindly delete generated files from a working installation while troubleshooting.
 
@@ -334,7 +336,9 @@ The board-specific defaults currently duplicate the base contents; keep them syn
 
 ### GitHub Actions and OTA
 
-The updated `compile-common-image.yml` includes `waveshare_LCD_5B` alongside the original environments. Keep its workflow name consistent with the listener in `add-comment-to-pr.yml`. Inclusion in the matrix is not proof that the first run has passed, and CI compilation is not a hardware test.
+The current `compile-common-image.yml` preserves the supplied Dala workflow and **does not include `waveshare_LCD_5B`**. PR #1 passed all **10 checks**, including pre-commit, unit tests and the configured common-image builds, after formatting commit `53bcfe3d`. This is not an automated build or hardware validation of the LCD environment.
+
+Formatting follows the repository's `.pre-commit-config.yaml`, including clang-format **v23.1.2**. Run `pre-commit run --all-files` before submitting changes. A first run can report failure because it modified files; review the diff and run again before committing. Do not bypass checks to hide formatting failures.
 
 The fork retains the base OTA mechanisms and two OTA application partitions of `0x640000` bytes each. **An end-to-end OTA test on this board remains pending.** Do not confuse an OTA application image with a factory/full-flash image. Retaining OTA code does not establish safe updates or recovery under every failure condition.
 
@@ -370,15 +374,18 @@ The battery/inverter CAN fault was resolved by enabling the Waveshare's onboard 
 | Item | Evidence / current status |
 |---|---|
 | Display and touch | User-operated on the physical LCD-5B |
-| Kia Soul / GoodWe communication | User confirmed inverter recognition, 98 cells and disappearance of the earlier native CAN error after termination adjustment |
+| Kia pack / GoodWe communication | User confirmed inverter recognition, 98 cells and disappearance of the earlier native CAN error after termination adjustment |
 | UI188 responsiveness | User reported substantially smoother interaction |
 | RS485 transport | Independent Ethernet capture validated 80 request/reply pairs with CRC, session, sequence and demand echo matching |
 | GPIO/UART diagnostic | PDS198 phase 2 produced valid matched replies after explicit RX reconfiguration |
 | Full RX integration | User confirmed success after PDS199 was integrated |
 | Pump raw control | Separate bench experiments demonstrated demand response; selected upper command is 0x99 |
 | Complete revised SOC UI | Source and host logic checks performed; reboot persistence and inverter behavior need confirmation in the final assembled setup |
-| PDS203 build helper | Host fixture tests performed; fresh-machine installation/build validation pending |
-| Automated LCD-5B CI | Workflow entry added; first successful run not established by the reviewed files |
+| Updated PDS211 local build | Successful with PlatformIO 6.2.0, pioarduino 55.03.312-1 and the installed PDS212 workaround |
+| PDS211 upload and initial operation | Upload through COM4 succeeded; owner confirmed battery contactors closed, inverter communication and initial operation |
+| Build footprint before formatting | Static RAM 117476/327680 bytes (35.9%); application flash 2500019/6553600 bytes (38.1%). Not runtime heap/PSRAM measurements |
+| Formatting and repository CI | Seven files formatted; three local pre-commit checks and all 10 PR checks passed; PR #1 merged |
+| Automated LCD-5B CI | Not present in the current workflow; no post-formatting LCD build or hardware retest recorded |
 | OTA, thermal automation and long-duration fault tests | Further end-to-end validation required |
 
 Host tests covered packet CRC/framing, session/sequence matching, watchdog boundaries, corrupted inputs, UI actions, SOC ranges, preset/Cancel/Save behavior and selected layout bounds with simulated peripherals. They do not replace an ESP32 build, actual LVGL rendering, electrical measurements or full-system safety testing.
@@ -430,8 +437,8 @@ Paths below describe the implementation, not an exhaustive diff against every up
 | [`sdkconfig.waveshare.defaults`](sdkconfig.waveshare.defaults) | LCD-specific SDK defaults |
 | [`boards/esp32s3_flash_16MB.json`](boards/esp32s3_flash_16MB.json) | Existing 16 MB ESP32-S3 profile used by this port |
 | [`default_16MB.csv`](default_16MB.csv) | Flash/OTA partition layout |
-| [`tools/fix_pioarduino_tool_paths.py`](tools/fix_pioarduino_tool_paths.py) | Explicit installed-platform path workaround |
-| [`.github/workflows/compile-common-image.yml`](.github/workflows/compile-common-image.yml) | Build matrix and cache updates |
+| [`sdkconfig.waveshare_LCD_5B`](sdkconfig.waveshare_LCD_5B) | Deliberately tracked generated configuration snapshot |
+| [`.github/workflows/compile-common-image.yml`](.github/workflows/compile-common-image.yml) | Upstream common-image builds; no LCD-5B job |
 | [`.gitignore`](.gitignore) | Keeps generated files out while allowing intentional defaults |
 
 The generic RS485 and NVM layers are reused. The working RX fix is local to the Waveshare pump module, not a global change for all hardware.
@@ -446,7 +453,8 @@ Planned or pending work includes:
 - Reduce logging-related stalls and validate task/heap behavior under sustained load.
 - Validate pump control, current feedback, RS485 loss/recovery and thermal hysteresis end to end.
 - Verify SOC persistence and inverter behavior for the selected window.
-- Run clean-machine builds, the LCD-5B CI job and real OTA tests.
+- Document/distribute the current Windows installed-platform workaround reproducibly and run clean-machine builds.
+- Add and validate a dedicated LCD-5B CI job, then perform real OTA and rollback tests.
 - Review the separate legacy `cmake_clean.bat` helper rather than using it as the firmware build command.
 
 To help reproduce a problem, include the board revision, commit, environment name, PlatformIO/platform versions, active firmware on each board, wiring/termination description and relevant logs. Avoid changing wiring, UART selection, protocol timing and firmware simultaneously; controlled comparisons were essential to finding the RX configuration that worked.
