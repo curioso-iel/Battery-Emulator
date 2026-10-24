@@ -688,8 +688,8 @@ void setup() {
 #else
   const uint32_t connectivity_stack_size = 4096;
 #endif
-  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", connectivity_stack_size, NULL, TASK_CONNECTIVITY_PRIO,
-                          &connectivity_loop_task, esp32hal->WIFICORE());
+  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", connectivity_stack_size, NULL,
+                          TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, esp32hal->WIFICORE());
 
   led_init();
 

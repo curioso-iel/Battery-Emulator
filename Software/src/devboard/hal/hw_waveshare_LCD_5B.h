@@ -5,9 +5,7 @@
 
 class WaveshareLCD5BHal : public Esp32Hal {
  public:
-  const char* name() override {
-    return "Waveshare ESP32-S3-Touch-LCD-5B";
-  }
+  const char* name() override { return "Waveshare ESP32-S3-Touch-LCD-5B"; }
 
   // CAN
   gpio_num_t CAN_TX_PIN() override { return GPIO_NUM_15; }
@@ -19,11 +17,7 @@ class WaveshareLCD5BHal : public Esp32Hal {
 
   // Remaining Pins
   std::vector<comm_interface> available_interfaces() override {
-    return {
-        comm_interface::Modbus,
-        comm_interface::RS485,
-        comm_interface::CanNative
-    };
+    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative};
   }
 };
 
